@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 访问路径 http://localhost:8090/tomcat/tomcat-test
+ * 访问路径 <a href="http://localhost:8090/tomcat/tomcat-test">http://localhost:8090/tomcat/tomcat-test</a>
  */
 @Controller
 public class TomcatController {
@@ -33,8 +33,8 @@ public class TomcatController {
     }
 
     @ResponseBody
-    @GetMapping(value = "getMap", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "getMap", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
     public Object getMap() {
-        return new HashMap<>(Map.of("a", 1, "b", 2));
+        return Map.of("a", 1, "b", 2);
     }
 }

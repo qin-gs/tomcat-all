@@ -9,18 +9,18 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRegistration;
 
 /**
- * 使用java注册DispatcherServlet
- * tomcat启动时调用里面的onStartUp方法
- * spring-web项目里面使用了下面的规范1(里面写了SpringServletContainerInitializer)和规范2(WebApplicationInitializer接口)
- * 因此会扫描所有的WebApplicationInitializer实现类并传递给SpringServletContainerInitializer，
- * SSCI这个类会遍历扫描到的类依次调用onStartUp方法
+ * 使用 java 注册 DispatcherServlet
+ * tomcat 启动时调用里面的 onStartUp 方法
+ * spring-web 项目里面使用了下面的规范1(里面写了 SpringServletContainerInitializer )和规范2( WebApplicationInitializer 接口)
+ * 因此会扫描所有的 WebApplicationInitializer 实现类并传递给 SpringServletContainerInitializer，
+ * SSCI 这个类会遍历扫描到的类依次调用 onStartUp 方法
  * <p>
  * servlet3.1规范
- * 1. 如果在resources/META-INF/services/javax.servlet.ServletContainerInitializer文件里的类
- * 实现了ServletContainerInitializer接口，tomcat在启动时会调用里面的onStartUp方法(spi技术)
- * 2. 如果该类还被@HandlesTypes()注解修饰，还会传递接口中的所有实现类
+ * 1. 如果在 resources/META-INF/services/javax.servlet.ServletContainerInitializer 文件里的类
+ * 实现了 ServletContainerInitializer 接口，tomcat 在启动时会调用里面的onStartUp方法(spi技术)
+ * 2. 如果该类还被 @HandlesTypes() 注解修饰，还会传递接口中的所有实现类
  * <p>
- * https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc-servlet
+ * <a href="https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc-servlet">https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc-servlet</a>
  */
 public class MyWebApplicationInitializer implements WebApplicationInitializer {
     @Override
