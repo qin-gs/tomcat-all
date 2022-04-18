@@ -7,7 +7,7 @@
 
     <parent>
         <groupId>org.example</groupId>
-        <artifactId>tomcat-learn</artifactId>
+        <artifactId>tomcat-all</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
