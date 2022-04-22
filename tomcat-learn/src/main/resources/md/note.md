@@ -199,9 +199,133 @@ tomcat 使用 `org.apache.catalina.ValveContext#invokeNext` 实现阀的遍历�
 
 
 
+#### 5.6 Context 应用程序
+
+- 容器包含一条管道，容器的 invoke() 方法会调用管道的 invoke() 方法:
+- 管道的 invoke() 方法会调用所有添加到其容器中的阀，然后再调用其基础阀的 invoke() 方法; .
+- 在 Wrapper 实例中，**基础阀负责载入相关联的servlet类**，并对请求进行响应;
+- 在包含子容器的 Context 实例中，**基础阀使用映射器来查找一个子容器**，该子容器负责处理接收到的请求。若找到了相应的子容器，则调用其invoke() 方法，转到步骤 1) 继续执行。
 
 
 
+### 6. 生命周期
+
+
+
+#### 6.1 Lifecycle 接口
+
+通过父组件统一管理子组件的生命周期
+
+
+
+#### 6.2 LifecycleEvent 类
+
+生命周期事件
+
+
+
+#### 6.3 LifecycleListener 接口
+
+生命周期事件监听器
+
+
+
+#### 6.4 LifecycleSupport 类
+
+帮助组件管理监听器，触发相应的生命周期事件
+
+
+
+#### 6.5 应用程序
+
+
+
+
+
+### 7. 日志记录器
+
+
+
+#### 7.1 org.apache.catalina.Logger 接口
+
+所有的日志记录器都要实现该接口
+
+
+
+#### 7.2 日志记录器
+
+- 父类 LoggerBase
+
+  子类需要重写 public abstract void log(String msg); 方法
+
+- FileLogger：将信息写入文件
+- SystemErrLogger：System.out.println(msg)
+- SystemOutLogger：System.err.println(msg);
+
+
+
+
+
+### 8. 载入器
+
+
+
+#### 8.1 java 的类载入器
+
+- 启动类加载器
+- 扩展类加载器
+- 应用程序类加载器
+
+
+
+#### 8.2 org.apache.catalina.Loader 接口
+
+web 应用程序载入器，有一个自定义的类加载器
+
+载入器通常与 Context 级别的容器相关联
+
+载入器支持修改后类的重新载入，默认为禁用
+
+```xml
+<!-- 在 server.xml 中添加如下元素 -->
+<Context path="/app" docBase="app" debug="0" reloadable="true"/>
+```
+
+当与某个载入器相关联的容器需要使用某个servlet 类时，即当该类的某个方法被调用时，容器会先调用载入器的getClassLoader() 方法来获取类载入器的实例。然后，容器会调用类载入器的 loadClass() 方法来裁入这个servlet类。
+
+
+
+#### 8.3 org.apache.catalina.loader.Reloader 接口
+
+- modified：某个类是否被修改
+- addRepository：添加仓库
+- findRepository：返回实现了 Reloader 接口的类载入器的所有仓库
+
+
+
+#### 8.4 org.apache.catalina.loader.WebappLoader 类
+
+载入器，负责载入 web 应用程序中所用到的类
+
+该类创建一个 org.apache.catalina.loader.WebappClassLoader 作为类载入器
+
+通过实现 java.lang.Runnable 接口不断的调用载入器的 modified 方法，如果发现类被修改通知载入器相关联的 servlet容器(Context)，由容器完成类的重新载入
+
+- 创建类加载器
+- 设置仓库：/WEB-INF/classes，/WEB-INF/lib
+- 设置类路径
+- 设置访问权限
+- 开启新线程执行类的重新载入
+
+
+
+#### 8.5 org.apache.catalina.loader.WebappClassLoader 类
+
+类载入器，某些包下的类是不允许载入的
+
+- 类缓存
+
+  保存已载入 和 载入失败的类，作为 资源(org.apache.catalina.loader.ResourceEntry) 存储
 
 
 
