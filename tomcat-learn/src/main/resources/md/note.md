@@ -327,11 +327,160 @@ web 应用程序载入器，有一个自定义的类加载器
 
   保存已载入 和 载入失败的类，作为 资源(org.apache.catalina.loader.ResourceEntry) 存储
 
+- 类载入
+
+  
+
+
+
+### 9. Session 管理
+
+通过 Session管理器 管理创建的 session 对象
+
+
+
+#### 9.1 Session 对象
+
+![session继承关系](../img/session继承关系.png)
+
+StandardSession 类
+
+创建 session 对象必须给一个管理器实例
+
+StandardSessionFacade 类
+
+为了传递一个 Session 对象给 servlet 实例，Catalina 会实例化 StandardSession 类，填充该 Session 对象，然后再将其传给 servlet 实例。但是，实际上，Catalina 传递的是 Session 的外观类 StandardSessionFacade 的实例，该类仅仅实现了 javax.servlet.http.HttpSession 接口中的方法。这样，servlet 程序员就不能将HttpSession对象向下转换为StandardSession类型，也阻止了servlet 访问一些敏感方法
+
+
+
+#### 9.2 Manager
+
+![Manager继承关系](../img/Manager继承关系.png)
+
+org.apache.catalina.session.StandardManager 一个标准实现，实现了 Lifecycle 接口，可以通过容器启动关闭；实现了 Runnable 接口来销毁失效的对象
+
+PersistentManagerBase 类可以将 session 进行持久化，需要完成备份 和 换出 session
+
+- 换出
+
+  只有当活动 Session 对象的数量超过了变量 maxActiveSessions 指定的上限值，或者该 Session 对象闲置了过长时间后，才会换出它。
+
+  - 当内存中有过多的 Session 对象时，PersistentManagerBase 实例会直接将Session对象换出，直到当前活动Session对象的数量等于变量maxActiveSessions指定的数值(参见processMaxActiveSwaps()方法)。
+
+  - 当某个Session对象闲置了过长时间时，PersistentManagerBase类会依据两个变量的值来决定是否将这个Session对象换出
+
+    这两个变量分别是 minIdleSwap 和 maxldleSwap.如果某个 Session 对象的 lastAccessedTime 属性的值超过了 minIdleSwap 和 maxIdleSwap 的值，就会将这个 Session 对象换出。为了防止换出 Session 对象，可以将变量 maxldleSwap 的值置为负数(参见 processMaxIdleSwaps() 方法)。
+
+- 备份
+
+  只会备份那些空闲时间超过了 maxIdleBackup 指定的值的 session 对象
 
 
 
 
 
+#### 9.3 存储器
+
+org.apache.catalina.Store 完成持久化存储功能
+
+save：将指定 session 存储到某种持久性存储器中
+
+load：从存储器中将 session 载入到内存
+
+![Store继承关系](../img/Store继承关系.png)
+
+
+
+当调用 getSession() 方法时，request 对象必须调用与 Context 容器相关联的 Sesison管理器。Session 管理器组件要么创建-一个新的 session 对象，要么返回一个已经存在的 session 对象。request 对象为了能够访问 Session 管理器，它必须能够访问 Context 容器。
+
+
+
+### 10. 安全性
+
+servlet容器是通过一个名为验证器的阀来支持安全限制的。当servlet容器启动时，验证器阀会被添加到Context容器的管道中。
+
+在调用Wrapper阀之前，会先调用验证器阀，对当前用户进行身份验证。如果用户输入了正确的用户名和密码，则验证器阀会调用后续的阀，继续显示请求的servlet。如果用户未能通过身份验证，则验证器阀会返回，而不会调用后面的阀。身份验证失败的话，用户就无法查看请求的servlet资源了。
+
+
+
+- 领域
+
+  org.apache.catalina.Realm
+
+  领域对象用来对用户进行身份验证的组件。它会对用户输入的用户名和密码对进行有效性判断。领域对象通常都会与一个Context容器相关联，而一个Context容器也只能有一个领域对象。可以调用Context容器的setRealm()方法来将领域对象与该Context容器相关联。
+
+  它保存了所有有效用户的用户名和密码对，或者它会访问存储这些数据的存储器。这些数据的具体存储依赖于领域对象的具体实现。在Tomcat中，有效用户信息默认存储在tomcat-user.xml文件中。但是可以使用其他的领域对象的实现来针对其他资源验证用户身份，例如查询-一个关系数据库。
+
+- 主体
+
+  java.security.Principal 实现类 GenericPrinciple ，需要与一个领域对象相关联
+
+- 登录配置
+
+  LoginConfig，包含 领域对象名，身份验证方法
+
+- 验证器
+
+  Authenticator 这是一个 **阀**
+
+- 安装验证器阀
+
+
+
+
+
+
+
+### 11. StandardWrapper
+
+
+
+#### 11.1 方法调用序列
+
+
+
+<img src="../img/http请求调用协作图.png" alt="http请求调用协作图" style="zoom:50%;" />
+
+
+
+1. 连接器创建 request 和 response 对象;
+2. 连接器调用StandardContext实例的invoke()方法:
+3. 接着, StandardContext 实例的 invoke() 方法调用其管道对象的invoke() 方法。StandardContext 中管道对象的基础阀是 StandardContextValve 类的实例，因此，StandardContext 的管道对象会调用StandardContextValve实例的 invoke() 方法;
+4. StandardContextValve 实例的 invoke() 方法获取相应的 Wrapper 实例处理HTTP请求，调用 Wrapper 实例的 invoke() 方法;
+5. StandardWrapper 类是 Wrapper 接口的标准实现，StandardWrapper 实例的 invoke() 方法会调用其管道对象的 invoke() 方法:
+6. StandardWrapper 的管道对象中的基础阀是 StandardWrapperValve 类的实例，因此，会调用StandardWrapperValve 的 invoke() 方法，StandardWrapperValve 的 invoke() 方法调用 Wrapper 实例的allocate() 方法获取 servlet 实例;
+7. allocate() 方法调用 load() 方法载人相应的 servlet 类，若已经载入，则无需重复载人;
+8. load() 方法调用 servlet 实例的 init() 方法;
+9. StandardWrapperValve 调用 servlet 实例的 service() 方法。
+
+
+
+- StandardContext 的构造函数会设置 StandardContextValve 类的一个实例作为其基础阀；
+
+- StandardWrapper 的构造函数会设置 StandardWrapperValve 类的一个实例作为其基础阀;
+
+
+
+
+
+#### 11.2 SingleThreadModel
+
+~~已被废弃：servlet 实现 javax.servlet.SingleThreadModel 类保证一次只处理一个请求，(如果使用了静态变量，不能保证线程安全)~~
+
+
+
+#### 11.3 StandardWrapper
+
+- StandardWrapper：**载入(载入器)并实例化 servlet**，调用 init
+
+- StandardWrapperValve：调用 allocate 方法从 StandardWrapper 中获取 servlet 实例，调用 servlet#service 方法
+
+- ServletConfig：调用 servlet#init 方法时需要传入该对象(实际传入的是一个外观类)
+
+  - getServletContext：获取 wrapper 所在的 context (wrapper 必须放置在某个 context 容器中，并且不能有子容器)
+  - getInitParameter：初始化参数存储在一个 HashMap 中
+
+  
 
 
 
