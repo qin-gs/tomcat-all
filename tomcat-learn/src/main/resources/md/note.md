@@ -433,6 +433,8 @@ servlet容器是通过一个名为验证器的阀来支持安全限制的。当s
 
 ### 11. StandardWrapper
 
+每个 wrapper 代表一个具体的 servlet 定义
+
 
 
 #### 11.1 方法调用序列
@@ -449,7 +451,7 @@ servlet容器是通过一个名为验证器的阀来支持安全限制的。当s
 4. StandardContextValve 实例的 invoke() 方法获取相应的 Wrapper 实例处理HTTP请求，调用 Wrapper 实例的 invoke() 方法;
 5. StandardWrapper 类是 Wrapper 接口的标准实现，StandardWrapper 实例的 invoke() 方法会调用其管道对象的 invoke() 方法:
 6. StandardWrapper 的管道对象中的基础阀是 StandardWrapperValve 类的实例，因此，会调用StandardWrapperValve 的 invoke() 方法，StandardWrapperValve 的 invoke() 方法调用 Wrapper 实例的allocate() 方法获取 servlet 实例;
-7. allocate() 方法调用 load() 方法载人相应的 servlet 类，若已经载入，则无需重复载人;
+7. allocate() 方法调用 load() 方法载人相应的 servlet 类，若已经载入，则无需重复载入;
 8. load() 方法调用 servlet 实例的 init() 方法;
 9. StandardWrapperValve 调用 servlet 实例的 service() 方法。
 
@@ -481,6 +483,95 @@ servlet容器是通过一个名为验证器的阀来支持安全限制的。当s
   - getInitParameter：初始化参数存储在一个 HashMap 中
 
   
+
+#### 11.4 StandardWrapperFacade
+
+调用 init 方法时传入的外观类
+
+
+
+#### 11.5 StandardWrapperValve
+
+基础阀
+
+- 执行与该 servlet 关联的所有过滤器
+- 调用 servlet#service 方法
+
+基础阀中 invoke 方法的逻辑
+
+1. 调用 StandardWrapper 实例的 allocate() 方法获取该 StandardWrapper 实例所表示的servlet
+   实例:
+2. 调用私有方法 createFilterChain()，创建过滤器链（ApplicationFilterChain）:
+3. 调用过滤器链的 doFilter() 方法，其中包括调用 servlet 实例的 service()方法;
+4. 释放过滤器链;
+5. 调用Wrapper实例的 deallocate() 方法: 
+6. 若该 servlet 类再也不会被使用到，则调用 Wrapper 实例的 unload() 方法。
+
+
+
+#### 11.6 FilterDef
+
+过滤器定义
+
+
+
+#### 11.7 ApplicationFilterConfig
+
+管理第一次启动时创建的所有过滤器实例，需要 Context 和 FilterDef
+
+getFilter：负责载入过滤器并实例化
+
+
+
+#### 11.8 ApplicationFilterChain
+
+StandardWrapperValve 对象会调用 invoke 方法创建该对象，并调用 doFilter 方法调用第一个过滤器，调用完最后一个调用 service 方法
+
+
+
+
+
+### 12. StandardContext
+
+context 需要其它组件支持(载入器，session 管理器)
+
+
+
+#### 12.1 StandardContext 配置
+
+创建该对象后调用 start 方法为每个 http 请求提供服务
+
+- 创建并配置成功后会读取解析 %CATALINA_HOME%/conf/web.xml 文件 (该文件的内容会应用到所有部署到 tomcat 中的应用程序，保证 StandardContext 可以处理应用程序级别的 web.xml 文件)
+- 配置基础阀(StandardContextValue) 和 许可阀
+
+
+
+org.apache.catalina.core.StandardContext#start
+
+- 触发 BEFORE_START 事件
+- 将 availability 属性设置为 false
+- 将 configured 属性设置为 false
+- 配置资源
+- 设置载入器
+- 设置 Session管理器
+- 初始化字符集映射器
+- 启动与该 Context容器 相关联的组件
+- 启动子容器
+- 启动管道对象
+- 启动 Session管理器
+- 触发 START 事件，在这里监听器(ContextConfig 实例)会执行一些配置操作，若设置成功，ContextConfig 实例会将StandardContext实例的 configured 变量设置为true
+- 检查 configured 属性的值，若为 true,则调用 postWelcomePages() 方法，载人那些需要在启动时就载入的子容器，即Wrapper实例，将 availability 属性设置为 true.若 configured 变量为 false ,则调用stop()方法
+- 触发AFTER_ START事件。
+
+
+
+invoke 方法由与其关联的 连接器 或 父容器host 调用
+
+
+
+
+
+
 
 
 
