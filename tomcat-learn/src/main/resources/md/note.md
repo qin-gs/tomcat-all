@@ -542,7 +542,7 @@ context 需要其它组件支持(载入器，session 管理器)
 创建该对象后调用 start 方法为每个 http 请求提供服务
 
 - 创建并配置成功后会读取解析 %CATALINA_HOME%/conf/web.xml 文件 (该文件的内容会应用到所有部署到 tomcat 中的应用程序，保证 StandardContext 可以处理应用程序级别的 web.xml 文件)
-- 配置基础阀(StandardContextValue) 和 许可阀
+- 配置基础阀(StandardContextValve) 和 许可阀
 
 
 
@@ -566,6 +566,137 @@ org.apache.catalina.core.StandardContext#start
 
 
 invoke 方法由与其关联的 连接器 或 父容器host 调用
+
+
+
+#### 12.2 StandardContextMapper
+
+StandardContextValve 基础阀，调用 context 的 map 方法，根据协议返回映射器；
+
+StandardContextMapper 映射器，必须与 context 容器相关联，通过 map 方法返回一个 wrapper 处理请求，
+
+对于每个引入的HTTP请求，都会调用 StandardContext 实例的管道对象的基础阀的 invoke() 方法来处理。StandardContext 实例的基础阀是 org. apache.catalina.core.StandardContextValve 类的实例。StandardContextValve 类的invoke() 方法要做的第一件事是获取一个要处理HTTP请求Wrapper实例。
+
+
+
+#### 12.3 对重载的支持
+
+通过载入器实现，当 web.xml 或 WEB-INF/classes 下的文件发生变化时，会重新载入
+
+
+
+#### 12.4 backgroundProcess()
+
+tomcat5 中一些后台处理任务共享同一个线程
+
+- 载入器需要周期性的检查类是否被修改
+- session 管理器需要周期性的检查是否由对象过期
+
+
+
+
+
+### 13. Host 和 Engine
+
+
+
+#### 13.1 Host 接口
+
+map 方法返回 一个 context 处理请求 
+
+
+
+#### 13.2 StandardHost
+
+基础阀 StandardHostValve，调用 start 方法时会加入两个阀 ErrorReportValve, ErrorDispatcherValve
+
+请求过来后，会调用 invoke 方法，
+
+map 方法获取相应的 context 实例处理 http 请求
+
+
+
+#### 13.3 StandardHostMapper
+
+映射器
+
+
+
+#### 13.4 StandardHostValve
+
+基础阀，请求过来后会调用 invoke(request, response, valueContext) 方法进行处理，调用 StandardHost 的 map 方法获取一个 context，然后获取 request 对应的 session，修改最后访问时间；最后调用 Context 的 invoke 方法处理请求
+
+
+
+#### 13.5 必须有一个 Host容器
+
+如果一个 context 使用 ContextConfig 对象进行设置，必须使用一个 Host 对象
+
+ContextConfig 会读取 web.xml 文件，里面用到了 Host
+
+
+
+#### 13.7 Engine
+
+部署 tomcat 时需要支持多个虚拟机的话需要用到 Engine 容器
+
+可以设置默认的 Host 或 Context，但是子容器只能是 Host，不能有父容器
+
+
+
+#### 13.8 StandardEngine
+
+构造函数中会添加基础阀 StandardEngineValve
+
+
+
+#### 13.9 StandardEngineValve
+
+基础阀：验证一下 request 和 response，调用 map 方法得到一个 Host，调用 invoke 方法处理请求
+
+
+
+### 14. 服务器组件 和 服务组件
+
+
+
+#### 14.1 服务器组件
+
+org.apache.catalina.Server 接口表示 catalina 的整个 servlet 引擎，使用一种方法来 启动/关闭 系统(不需要分别处理 连接器，处理器)
+
+
+
+#### 14.2 StandardServer
+
+可以向服务器组件中 添加/删除/查找 服务组件，有四个生命周期相关的方法，可以初始化并启动服务器组件
+
+- initialize：初始化添加的服务器组件，只会初始化一次
+- start：启动服务器组件
+- stop：关闭服务器组件
+- await：等待关闭整个 tomcat 的命令(创建一个 ServerSocket，默认监听 8085 端口，)
+
+
+
+#### 14.3 Service
+
+服务组件：一个服务组件可以有一个 servlet容器 和 多个连接器
+
+
+
+#### 14.4 StandardService
+
+- 一个 servlet 容器
+- 多个 连接器：可以处理不同的协议 (http, https)
+
+生命周期方法
+
+- initialize：调用服务组件中所有连接器的 initialize 方法
+- start：启动被添加到该服务组件中的连接器 和 servlet容器
+- stop：关闭与该服务组件相关联的 servlet容器 和 所有连接器
+
+
+
+![启动过程](../img/启动过程.png)
 
 
 
