@@ -773,10 +773,317 @@ Catalina类包含一个 Digester 对象，用来解析 server.xml，封装了-�
 
 ### 18. 部署器
 
+当在server.xml 文件中遇到符合"Server/Servicc/Enginc/Host"模式的标签时，会创建`org.apache.catalina.startup.HostConfig` 类的一个实例，并将其添加到Host实例中，作为生命周期监听器。换句话说，HostConfig类会处理StandardHost实例的start()方法和stop() 发触发的事件。HostConfig类的lifecycleEvent() 方法是一个事件处理程序。因为HostConfig的实例是StandardHost实例的监听器，每当StandardHost实例启动或关闭时，都会调用lifecycleEvent()方法。
+
 Context 容器使用 war 形式来部署，需要放到 Host 中；在 StandardHost 中使用 HostConfig 类型的生命周期监听器
 
 当调用 StandardHost 实例的 start() 方法时，它会触发 START 事件。HostConfig 实例会对此事件进行相应，并调用其自身的 start() 方法，该方法会逐个部署并安装指定目录中的所有 Web 应用程序。
 
+- 部署描述符
+- 部署 war
+- 部署目录
+
+
+
+#### 18.2 Deploy 接口
+
+StandardHost 不仅是一个 容器 也是一个 部署器
+
+
+
+#### 18.3 StandardHostDeployer
+
+一个辅助类，完成将 web 应用程序部署到 StandardHost 的工作
+
+
+
+### 19. Manager应用程序的servlet类
+
+
+
+### 20. 基于JMX的管理
+
+
+
+
+
+---
+
+### 拾遗
+
+
+
+#### tomcat 结构 
+
+```xml
+<?xml version='1.0' encoding='utf-8'?>
+
+<Server port="8005" shutdown="SHUTDOWN">
+  <!-- 自带的监听器 -->
+  <!-- 启动时，检查APR库，如果存在则加载。APR，即Apache Portable Runtime，是Apache可移植运行库，可以实现高可扩展性、高性能，以及与本地服务器技术更好的集成。 -->
+  <Listener className="org.apache.catalina.core.AprLifecycleListener" SSLEngine="on" />
+  <!-- 在Web应用启动之前初始化Jasper，Jasper是JSP引擎，把JVM不认识的JSP文件解析成java文件，然后编译成class文件供JVM使用 -->
+  <Listener className="org.apache.catalina.core.JasperListener" />
+  <!-- 与类加载器导致的内存泄露有关 -->
+  <Listener className="org.apache.catalina.core.JreMemoryLeakPreventionListener" />
+  <!-- 通过该监听器，初始化< GlobalNamingResources>标签中定义的全局JNDI资源；如果没有该监听器，任何全局资源都不能使用 -->
+  <Listener className="org.apache.catalina.mbeans.GlobalResourcesLifecycleListener" />
+    <!-- 当Web应用因thread-local导致的内存泄露而要停止时，该监听器会触发线程池中线程的更新。当线程执行完任务被收回线程池时，活跃线程会一个一个的更新。只有当Web应用(即Context元素)的renewThreadsWhenStoppingContext属性设置为true时，该监听器才有效 -->
+  <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
+
+  <GlobalNamingResources>
+    <Resource name="UserDatabase" auth="Container"
+              type="org.apache.catalina.UserDatabase"
+              description="User database that can be updated and saved"
+              factory="org.apache.catalina.users.MemoryUserDatabaseFactory"
+              pathname="conf/tomcat-users.xml" />
+  </GlobalNamingResources>
+
+  <Service name="Catalina">
+    <!-- redirectPort 表示当强制要求https而请求是http时，重定向至端口号为8443的 Connector -->
+    <Connector port="8080" protocol="HTTP/1.1"
+               connectionTimeout="20000"
+               redirectPort="8443" URIEncoding="UTF-8" maxParameterCount="-1"/>
+    <!-- 客户端可以通过8009端口号使用AJP协议访问Tomcat。AJP协议负责和其他的HTTP服务器(如Apache)建立连接；在把Tomcat与其他HTTP服务器集成时，就需要用到这个连接器。之所以使用Tomcat和其他服务器集成，是因为Tomcat可以用作Servlet/JSP容器，但是对静态资源的处理速度较慢，不如Apache和IIS等HTTP服务器；因此常常将Tomcat与Apache等集成，前者作Servlet容器，后者处理静态资源，而AJP协议便负责Tomcat和Apache的连接 -->
+    <Connector port="8009" protocol="AJP/1.3" redirectPort="8443" />
+
+    <!-- name属性用于日志和错误信息，在整个Server中应该唯一。defaultHost属性指定了默认的host名称，当发往本机的请求指定的host名称不存在时，一律使用defaultHost指定的host进行处理；因此，defaultHost的值，必须与Engine中的一个Host组件的name属性值匹配 -->
+    <Engine name="Catalina" defaultHost="localhost">
+    
+      <Realm className="org.apache.catalina.realm.LockOutRealm">
+        <!-- resourceName 是上面 GlobalNamingResources 中定义的 -->
+        <Realm className="org.apache.catalina.realm.UserDatabaseRealm"
+               resourceName="UserDatabase"/>
+      </Realm>
+
+      <!-- 每个Host组件代表Engine中的一个虚拟主机。Host组件至少有一个，且其中一个的name必须与Engine组件的defaultHost属性相匹配 -->
+      <!-- unpackWARs指定了是否将代表Web应用的WAR文件解压；如果为true，通过解压后的文件结构运行该Web应用，如果为false，直接使用WAR文件运行Web应用 -->
+      <Host name="localhost"  appBase="webapps"
+            unpackWARs="true" autoDeploy="true">
+        <!-- 阀，AccessLogValve的作用是通过日志记录其所在的容器中处理的所有请求，在本例中，Valve放在Host下，便可以记录该Host处理的所有请求 (可以与Engine、Host或Context关联) -->
+        <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
+               prefix="localhost_access_log." suffix=".txt"
+               pattern="%h %l %u %t &quot;%r&quot; %s %b" />
+
+      </Host>
+    </Engine>
+  </Service>
+</Server>
+
+```
+
+请求过来时：
+
+1. 根据协议和端口号选定 Service 和 Container
+2. 根据域名或IP地址选定 Host
+3. 根据 URI 选定 Context/Web 应用
+
+<img src="../img/tomcat 配置文件结构.jpg" alt="tomcat 配置文件结构" style="zoom:75%;" />
+
+**tomcat 结构**
+
+- server：最顶层，只能有一个(可以配置多个 Service 服务，可以实现通过不同的端口号来访问同一台机器上部署的不同 Web 应用)，需要处理生命周期相关，监听 8005 端口发过来的 shutdown 命令，用 于关闭整个容器
+- service：可以有多个，包含 connector(连接器，可以有多个) 和 engine (容器)，各 个 Service 之间是独立的，但是共享同一 JVM 的资源 
+- connector：接受请求，创建 request 和 response 对象，传给 engine
+- container (engine)：只能有一个，接收 connector 中的请求并处理返回
+- loader：封装了 Java ClassLoader，用于 Container 加载类文件
+- realm：为 web 应用程序提供访问认证和角色管理的机制
+- jmx：Java SE 中定义技术规范，是一个为应用程序、设备、系统等植入管理功能的框架，通过 JMX 可以远程监控 Tomcat 的运行状态
+- jasper：Tomcat 的 Jsp 解析引擎，用于将 Jsp 转换成 Java 文件，并编译成 class 文件
+- session：负责管理和创建 session，以及 Session 的持久化，集群
+- pipeline：在容器中充当管道的作用，管道中可以设置各种 valve(阀门)，请求和响应在经由管 道中各个阀门处理，提供了一种灵活可配置的处理请求和响应的机制
+- naming：命名服务，JNDI， Java 命名和目录接口，是一组在 Java 应用中访问命名和目录服务的 API。命名服务将名称和对象联系起来，使得我们可以用名称访问对象，目录服务也是一种命名服务，对象不但有名称，还有属性。Tomcat 中可以使用 JNDI 定义数据源、配置信息，用于开发 与部署的分离
+
+
+
+**容器 container 组成**：
+
+- engine：Servlet 的顶层容器，包含一 个或多个 Host 子容器
+
+- host：每个Host组件代表 Engine 中的一个虚拟主机，并负责安装、展开、启动和结束每个Web应用，context 的创建
+
+  **自动检测更新参数**
+
+  - deployOnStartup：为true时，Tomcat在启动时检查Web应用，且检测到的所有Web应用视作新应用；
+  - autoDeploy：为true时，Tomcat在运行时定期检查新的Web应用或Web应用的更新。
+
+  自动部署依赖于检查是否有新的或更改过的 Web 应用，而 Host 元素的 appBase 和 xmlBase 设置了检查 Web应用更新的目录
+
+  **自动检测目录**
+
+  - appBase：属性指定 Web 应用所在的目录，默认值是 `webapps`，这是一个相对路径，代表 `Tomcat` 根目录下 `webapps` 文件夹。
+
+  - xmlBase：属性指定 Web应用的XML配置文件所在的目录，默认值为`conf/<engine_name>/<host_name>`，例如第一部分的例子中，主机 `localhost` 的 `xmlBase` 的默认值是`$TOMCAT_HOME/conf/Catalina/localhost`
+
+  检测顺序
+
+  - 扫描虚拟主机指定的 `xmlBase` 下的XML配置文件
+  - 扫描虚拟主机指定的 `appBase` 下的WAR文件
+  - 扫描虚拟主机指定的 `appBase` 下的应用目录
+
+- context
+
+  每个Context组件代表在特定Host上运行的一个Web应用，负责 web 配置的解析、管理所有的 Web 资源
+
+  - docBase 指定了该 Web 应用使用的 WAR 包路径，或应用目录。需要注意的是，在自动部署场景下(配置文件位于xmlBase中)，`docBase`不在`appBase`目录中，才需要指定；如果`docBase`指定的WAR包或应用目录就在`docBase`中，则不需要指定，因为`Tomcat`会自动扫描`appBase`中的WAR包和应用目录，指定了反而会造成问题
+
+  - **上下文路径**：在自动部署场景下(配置文件位于xmlBase中)，不能指定path属性，path属性由配置文件的文件名、WAR文件的文件名或应用目录的名称**自动推导**出来。如扫描Web应用时，发现了xmlBase目录下的app1.xml，或appBase目录下的app1.WAR或app1应用目录，则该Web应用的path属性是”app1”。如果名称不是app1而是ROOT，则该Web应用是虚拟主机默认的Web应用，此时path属性推导为””
+  - reloadable：属性指示tomcat是否在运行时监控在`WEB-INF/classes`和`WEB-INF/lib`目录下class文件的改动。
+
+  ```xml
+  <!-- 静态部署 -->
+  <Context docBase="D:\Program Files\app1.war" reloadable="true"/>
+  ```
+
+- warpper：是对 Servlet 的封装，负责 Servlet 实例的创 建、执行和销毁
+
+  
+
+  tomcat默认webapps目录
+
+  - http://localhost:8080/：访问的是 ROOT 对应的Web应用
+  - http://localhost:8080/docs：访问 docs 应用
+  - http://localhost:8080/examples/：...
+
+  ![tomcat默认webapps目录](../img/tomcat默认webapps目录.png)
+
+  静态部署：
+
+  - docBase：docBase可以在appBase目录下，也可以不在；本例中，docBase不在appBase目录下
+  - path：可以显式指定path属性，但是仍然受到了严格的限制：只有当自动部署完全关闭(`deployOnStartup`和`autoDeploy`都为`false`)或`docBase`不在`appBase`中时，才可以设置path属性
+
+
+
+**生命周期管理**
+
+生命周期管理引入了事件机制，在组件或容器的生命周期状态发生变化时会通 知事件监听器
+
+监听器通过判断事件的类型来进行相应的操作。事件监听器的添加可以在 server.xml 文件中进行配置
+
+各类容器的配置过程就是通过添加 listener 的方式来进行的，从而达到配置逻辑与 容器的解耦
+
+- EngineConfig：主要打印启动和停止日志
+- HostConfig：处理部署应用，解析应用 META-INF/context.xml 并创建应用的 Context
+- ContextConfig：解析并合并 web.xml，扫描应用的各类 web 资源 (filter、servlet、listener)
+
+![生命周期管理](../img/生命周期管理.jpg)
+
+
+
+**启动过程**
+
+Tomcat 的启动过程
+
+![Tomcat 的启动过程](../img/Tomcat 的启动过程.jpg)
+
+
+
+- 启动从 Tomcat 提供的 start.sh 脚本开始，shell 脚本会调用 Bootstrap 的 main 方法，实际 调用了 Catalina 相应的 load、start 方法。
+
+- load 方法会通过 Digester 进行 config/server.xml 的解析，在解析的过程中会根据 xml 中的关系 和配置信息来创建容器，并设置相关的属性。接着 Catalina 会调用 StandardServer 的 init 和 start 方法进行容器的初始化和启动。
+
+- 按照 xml 的配置关系，server 的子元素是 service，service 的子元素是顶层容器 Engine，每层容器有持有自己的子容器，而这些元素都实现了生命周期管理 的各个方法，因此就很容易的完成整个容器的启动、关闭等生命周期的管理。
+
+- StandardServer 完成 init 和 start 方法调用后，会一直监听来自 8005 端口(可配置)，如果接收 到 shutdown 命令，则会退出循环监听，执行后续的 stop 和 destroy 方法，完成 Tomcat 容器的 关闭。同时也会调用 JVM 的 Runtime.getRuntime().addShutdownHook 方法，在虚拟机意外退 出的时候来关闭容器。
+
+- 所有容器都是继承自 ContainerBase，基类中封装了容器中的重复工作，负责启动容器相关的组 件 Loader、Logger、Manager、Cluster、Pipeline，启动子容器(线程池并发启动子容器，通过 线程池 submit 多个线程，调用后返回 Future 对象，线程内部启动子容器，接着调用 Future 对象 的 get 方法来等待执行结果)。
+
+
+
+**Web 应用的部署方式**
+
+- `server.xml` 配置 `Host `元素，指定 `appBase `属性，默认`$catalina.base/webapps/`
+- `server.xml` 配置 `Context `元素，指定 `docBase`，元素，指定 web `应用`的路径
+- 自定义配置：在`$catalina.base/EngineName/HostName/XXX.xml `配置 `Context `元素
+
+`HostConfig `监听了 `StandardHost `容器的事件，在 `start `方法中解析上述配置文件
+
+- 扫描 `appBase `路径下的所有文件夹和 war 包，解析各个应用的 `META-INF/context.xml`，并创建 `StandardContext`，并将 Context 加入到 Host 的子容器中。
+- 解析`$catalina.base/EngineName/HostName/`下的所有 Context 配置，找到相应 web 应 用的位置，解析各个应用的 `META-INF/context.xml`，并创建 `StandardContext`，并将 Context 加入到 Host 的子容器中。
+  - HostConfig 并没有实际解析 `context.xml`，而是在 ContextConfig 中进行的。
+  - HostConfig 中会定期检查 watched 资源文件(`context.xml` 配置文件)
+
+ContextConfig 解析 `context.xml` 顺序：
+
+- 先解析全局的配置 `conf/context.xml`
+- 然后解析 Host 的默认配置 `EngineName/HostName/context.xml.default`
+- 最后解析应用的 `META-INF/context.xml`
+
+ContextConfig 解析 `web.xml` 顺序：
+
+- 先解析全局的配置` conf/web.xml`
+- 然后解析 Host 的默认配置 `EngineName/HostName/web.xml.default` 接着解析应用的 `MEB-INF/web.xml`
+- 扫描应用 `WEB-INF/lib/`下的 jar 文件，解析其中的 `META-INF/web-fragment.xml` 最后合并 xml 封装成 WebXml，并设置 Context
+  - 扫描 web 应用和 jar 中的注解(`Filter、Listener、Servlet`)就是上述步骤中进行的。
+  - 容器的定期执行：`backgroundProcess`，由 `ContainerBase `来实现的，并且只有在顶层容器 中才会开启线程。(`backgroundProcessorDelay=10` 标志位来控制)
+
+
+
+**servlet 生命周期**
+
+1. 请求到达 server 端，server 根据 url 映射到相应的 Servlet
+2. 判断 Servlet 实例是否存在，不存在则加载和实例化 Servlet 并调用 init 方法
+3. Server 分别创建 Request 和 Response 对象，调用 Servlet 实例的 service 方法(service 方法 内部会根据 http 请求方法类型调用相应的 doXXX 方法)
+4. doXXX 方法内为业务逻辑实现，从 Request 对象获取请求参数，处理完毕之后将结果通过 response 对象返回给调用方
+5. 当 Server 不再需要 Servlet 时(一般当 Server 关闭时)，Server 调用 Servlet 的 destroy() 方 法。
+
+
+
+**loadOnStart 参数**
+
+- &gt;= 0：容器启动时加载 (数字越小，优先级越高)
+- < 0：请求过来时加载
+
+
+
+**请求处理过程**
+
+<img src="../img/请求处理过程.jpg" alt="请求处理过程" style="zoom:75%;" />
+
+**pipeline 和 value**
+
+每个容器的管道中都有一个必不可少的 basic valve (`StandardEngineValve、StandardHostValve、 StandardContextValve、StandardWrapperValve`),其他的都是可选的,basic valve 在管道中最 后调用,同时负责调用子容器的第一个 valve。
+
+
+
+**jsp 生命周期**
+
+- JSP元素代码片段：<% 代码片段 %> 
+- JSP声明：<%! declaration; [ declaration; ]+ ... %>
+- JSP表达式：<%= 表达式 %> 
+- JSP注释：<%-- 注释 --%>
+- JSP指令：  <%@ directive attribute=“value” %> 
+- JSP行为：  <jsp:action_name attribute=“value” /> 
+- HTML元素：html/head/body/div/p/… 
+- JSP隐式对象：request、response、out、session、application、config、 pageContext、page、Exception
+
+
+
+**JSP 元素说明 ** 
+
+- 代码片段:包含任意量的 Java 语句、变量、方法或表达式; 
+- JSP 声明:一个声明语句可以声明一个或多个变量、方法,供后面的 Java 代码使用; 
+- JSP 表达式:输出 Java 表达式的值,String 形式; 
+- JSP 注释:为代码作注释以及将某段代码注释掉 
+- JSP 指令:用来设置与整个 JSP 页面相关的属性, <%@ page ... %>定义页面的依赖属性,比如 language、contentType、errorPage、 isErrorPage、import、isThreadSafe、session 等等 <%@ include ... %>包含其他的 JSP 文件、HTML 文件或文本文件,是该 JSP 文件的一部分,会 被同时编译执行 <%@ taglib ... %>引入标签库的定义,可以是自定义标签 JSP 行为:jsp:include、jsp:useBean、jsp:setProperty、jsp:getProperty、jsp:forward
+
+
+
+**异步 servet**
+
+- 客户端发送一个请求
+- `servlet`容器分配一个线程来处理容器中的一个`servlet`
+- `servlet`调用`request.startAsync()`，保存`AsyncContext`, 然后返回
+- 任何方式存在的容器线程都将退出，但是`response`仍然保持开放
+- 业务线程使用保存的`AsyncContext`来完成响应（线程池）
+- 客户端收到响应
+
+异步事件监听 (`javax.servlet.AsyncListener`)
+
+- onStartAsync：Request调用startAsync方法时触发
+- onComplete：syncContext调用complete方法时触发
+- onError：处理请求的过程出现异常时触发
+- onTimeout：socket超时触发
 
 
 
@@ -784,6 +1091,49 @@ Context 容器使用 war 形式来部署，需要放到 Host 中；在 StandardH
 
 
 
+#### 类加载顺序
+
+- Bootstrap 启动类加载器：加载 jvm 和 (jre/lib/ext 目录)
+
+- 系统类加载器：加载 tomcat 启动的类，在 catalina.bat 中指定，位于 CATALINA_HOME/bin
+
+- 通用类加载器：加载 tomcat 使用的一些类( servlet-api.jar )
+- webapp 应用类加载器：加载 WEB-INF/lib 和 WEB-INF/classes 下的文件
 
 
 
+1. 使用 bootstrap 引导类加载器加载
+2. 使用 system 系统类加载器加载
+3. 使用应用类加载器在 WEB-INF/classes 中加载
+4. 使用应用类加载器在 WEB-INF/lib 中加载
+5. 使用common类加载器在 CATALINA_HOME/lib 中加载 
+
+
+
+
+
+① 如果我们是通过正常项目的maven方式来引用这个jar包，那么虚拟机会**优先加载项目**中的类A，因为应用类加载器，会优先加载项目中编译的class文件，其次才是引入的jar包。
+
+② 如果引入的这个类是在jdk的 /lib/ext 中，那么由于双亲委派机制，扩展类加载器会有限加载它，而不是通过应用类加载器加载这个类。
+
+③ 如果这个类放在/lib下，那么会发生虚拟机找不到这个类的情况。因为启动类加载器不会加载自定义的类
+
+④ 如果是war包，在Tomcat环境下，Tomcat是破坏了双亲委派机制，那么具体怎么加载也需要根据引入的jar包所方的位置
+
+其次得到的知识点：
+
+① 双亲委派机制是一个可以定义加载类的优先级的机制。对于一些类，会根据其特有的放置位置，被有限于其他的类加载。比如 /lib 下的类会优先于 /lib/ext 的类，而 /lib/ext 则会有限于用户自定义的类
+
+② 双亲委派机制能保证在项目中，只会存在一个最优先版本的类，如果双亲加载器已经加载过这个类了，那么其他的加载器就不会再加载了。
+
+③ 类加载器规定了应用加载类的方式和路径位置。如果用户希望在不同的路径中加载类，那么可以尝试自定义类加载器实现
+
+
+
+
+
+
+
+[Tomcat 在 SpringBoot 中是如何启动的](https://mp.weixin.qq.com/s/0A1HdbbXicrLFmhv_CeLDw)
+
+[详解 Tomcat 配置文件 server.xml](https://mp.weixin.qq.com/s/QfwvvHtrC-tqan2ebjri1g)
