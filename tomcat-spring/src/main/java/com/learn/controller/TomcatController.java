@@ -5,11 +5,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 访问路径 <a href="http://localhost:8090/tomcat/tomcat-test">http://localhost:8090/tomcat/tomcat-test</a>
+ * <a href="http://localhost:8090/tomcat/tomcat-test">访问路径</a>
  */
 @Controller
 public class TomcatController {
@@ -33,7 +32,7 @@ public class TomcatController {
     }
 
     @ResponseBody
-    @GetMapping(value = "getMap", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    @GetMapping(value = "getMap", produces = MediaType.APPLICATION_PROBLEM_JSON_VALUE)
     public Object getMap() {
         return Map.of("a", 1, "b", 2);
     }

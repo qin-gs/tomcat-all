@@ -773,7 +773,7 @@ Catalina类包含一个 Digester 对象，用来解析 server.xml，封装了-�
 
 ### 18. 部署器
 
-当在server.xml 文件中遇到符合"Server/Servicc/Enginc/Host"模式的标签时，会创建`org.apache.catalina.startup.HostConfig` 类的一个实例，并将其添加到Host实例中，作为生命周期监听器。换句话说，HostConfig类会处理StandardHost实例的start()方法和stop() 发触发的事件。HostConfig类的lifecycleEvent() 方法是一个事件处理程序。因为HostConfig的实例是StandardHost实例的监听器，每当StandardHost实例启动或关闭时，都会调用lifecycleEvent()方法。
+当在server.xml 文件中遇到符合"Server/Service/Engine/Host"模式的标签时，会创建`org.apache.catalina.startup.HostConfig` 类的一个实例，并将其添加到Host实例中，作为生命周期监听器。换句话说，HostConfig类会处理StandardHost实例的start()方法和stop() 发触发的事件。HostConfig类的lifecycleEvent() 方法是一个事件处理程序。因为HostConfig的实例是StandardHost实例的监听器，每当StandardHost实例启动或关闭时，都会调用lifecycleEvent()方法。
 
 Context 容器使用 war 形式来部署，需要放到 Host 中；在 StandardHost 中使用 HostConfig 类型的生命周期监听器
 

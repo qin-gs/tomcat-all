@@ -16,6 +16,7 @@ import java.util.Set;
 public class MyInitializer implements ServletContainerInitializer {
     @Override
     public void onStartup(Set<Class<?>> c, ServletContext ctx) throws ServletException {
+        System.out.println("c = " + c);
         System.out.println("tomcat initializer");
     }
 }

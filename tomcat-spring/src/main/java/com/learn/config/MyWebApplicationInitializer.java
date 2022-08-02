@@ -20,7 +20,7 @@ import javax.servlet.ServletRegistration;
  * 实现了 ServletContainerInitializer 接口，tomcat 在启动时会调用里面的onStartUp方法(spi技术)
  * 2. 如果该类还被 @HandlesTypes() 注解修饰，还会传递接口中的所有实现类
  * <p>
- * <a href="https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc-servlet">https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc-servlet</a>
+ * <a href="https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc-servlet">文档</a>
  */
 public class MyWebApplicationInitializer implements WebApplicationInitializer {
     @Override
